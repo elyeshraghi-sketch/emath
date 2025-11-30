@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ریاضی‌نما — عرفان حیدری | مدرسه اسرار</title>
+  <script src="https://unpkg.com/mathjs@12.4.2/lib/browser/math.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Vazir:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8f9ff;
+      --card: #fff;
+      --text: #2c3e50;
+      --primary: #3498db;
+      --school: #9b59b6;
+      --success: #27ae60;
+      --border: #e0e5f0;
+    }
+    .dark {
+      --bg: #1e2a38;
+      --card: #2d3748;
+      --text: #e2e8f0;
+      --border: #4a5568;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Vazir', Tahoma, sans-serif;
+      background: var(--bg);
+      margin: 0;
+      padding: 15px;
+      color: var(--text);
+      transition: background 0.3s, color 0.3s;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    header {
+      text-align: center;
+      padding: 16px 0;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      margin: 4px;
+    }
+    .name-badge { background: var(--primary); color: white; }
+    .school-badge { background: var(--school); color: white; }
+    h1 {
+      margin: 12px 0 8px;
+      font-size: 1.8rem;
+    }
+    .subtitle { color: #7f8c8d; margin-top: 0; }
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin: 16px 0;
+    }
+    #in {
+      flex: 1;
+      padding: 14px;
+      font-size: 16px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--text);
+      direction: ltr;
+      text-align: left;
+    }
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    #out, #plot { 
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      min-height: 60px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      overflow: auto;
+    }
+    #plot { display: none; }
+    .history {
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    .history-item {
+      padding: 8px;
+      background: rgba(52, 152, 219, 0.08);
+      border-radius: 6px;
+      margin: 4px 0;
+      cursor: pointer;
+    }
+    .step { 
+      background: #e3f2fd; 
+      padding: 12px; 
+      border-radius: 8px; 
+      margin: 8px 0;
+      border-right: 4px solid var(--primary);
+    }
+    .toggle-theme {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: var(--primary);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 100;
+    }
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 14px;
+      color: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+  <div class="toggle-theme" onclick="toggleTheme()">🌓</div>
+  
+  <div class="container">
+    <header>
+      <div class="badge name-badge">عرفان حیدری</div>
+      <div class="badge school-badge">مدرسه اسرار</div>
+      <h1>ریاضی‌نما 🧠</h1>
+      <p class="subtitle">حل‌کنندهٔ هوشمند ریاضی — گام‌به‌گام • نمودار • راهنمای مفهومی</p>
+    </header>
+
+    <div class="input-group">
+      <input id="in" placeholder="مثال: x^2-5x+6=0 یا plot sin(x)/x" value="x^2 - 5x + 6 = 0">
+      <button onclick="go()">⚡ حل کن</button>
+    </div>
+
+    <div id="out">نتیجه اینجا نمایش داده می‌شود...</div>
+    <div id="plot"></div>
+
+    <div class="history">
+      <strong>تاریخچه:</strong>
+      <div id="history-list"></div>
+    </div>
+
+    <footer>
+      <p>پروژهٔ جشنوارهٔ خوارزمی — طراحی‌شده با عشق توسط عرفان حیدری</p>
+    </footer>
+  </div>
+
+  <script>
+    // ذخیرهٔ تاریخچه در localStorage
+    let history = JSON.parse(localStorage.getItem('mathHistory') || '[]');
+
+    // تم تاریک/روشن
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+      localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    }
+    if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
+
+    // نمایش تاریخچه
+    function updateHistory() {
+      const list = document.getElementById('history-list');
+      list.innerHTML = history.slice(-5).reverse().map(q => 
+        `<div class="history-item" onclick="setInput('${q}')">${q}</div>`
+      ).join('');
+    }
+    function setInput(q) {
+      document.getElementById('in').value = q;
+      go();
+    }
+
+    // تابع اصلی حل
+    function go() {
+      const q = document.getElementById('in').value.trim();
+      const out = document.getElementById('out');
+      const plotDiv = document.getElementById('plot');
+      out.innerHTML = 'در حال پردازش...';
+      plotDiv.style.display = 'none';
+      plotDiv.innerHTML = '';
+
+      if (!q) { out.innerHTML = '❌ لطفاً عبارتی وارد کنید.'; return; }
+
+      // ذخیره در تاریخچه
+      if (!history.includes(q)) {
+        history.push(q);
+        if (history.length > 20) history.shift();
+        localStorage.setItem('mathHistory', JSON.stringify(history));
+        updateHistory();
+      }
+
+      try {
+        let res, explanation = '';
+
+        // تشخیص نوع: رسم نمودار
+        if (q.toLowerCase().startsWith('plot ') || q.toLowerCase().startsWith('رسم ')) {
+          const expr = q.split(' ').slice(1).join(' ');
+          plotFunction(expr, plotDiv);
+          out.innerHTML = `📈 در حال نمایش نمودار تابع: <code>${expr}</code>`;
+          plotDiv.style.display = 'block';
+          return;
+        }
+
+        // تشخیص معادله (دارای =)
+        if (q.includes('=')) {
+          const [left, right] = q.split('=').map(s => s.trim());
+          const eqStr = `${left} - (${right})`;
+          const node = math.parse(eqStr);
+          const vars = node.filter(n => n.isSymbolNode && n.name === 'x');
+          
+          if (vars.length > 0) {
+            // سعی در حل معادله درجه 2 به صورت گام‌به‌گام
+            const simplified = math.simplify(eqStr);
+            const coeffs = extractQuadraticCoeffs(simplified);
+            if (coeffs && coeffs.a !== 0) {
+              res = solveQuadraticStepByStep(coeffs.a, coeffs.b, coeffs.c, left, right);
+              out.innerHTML = res;
+              return;
+            }
+          }
+          // fallback به solve عمومی
+          res = math.solve(node, 'x');
+          res = Array.isArray(res) ? res.map(r => math.format(r, {precision: 10})) : [math.format(res, {precision: 10})];
+          out.innerHTML = `<strong>✅ ریشه‌ها:</strong> ${res.join(', ')}`;
+          return;
+        }
+
+        // سایر محاسبات
+        let expr = q
+          .replace(/\bint\b/g, 'integrate')
+          .replace(/\bdiff\b/g, 'derivative')
+          .replace(/\bln\b/g, 'log')
+          .replace(/(\d+)!/g, 'factorial($1)');
+        
+        res = math.evaluate(expr);
+        out.innerHTML = `<strong>✅ پاسخ:</strong> <code>${math.format(res, {precision: 12})}</code>`;
+        
+      } catch (e) {
+        out.innerHTML = `❌ خطا: ${e.message || 'عبارت نامعتبر است.'}`;
+      }
+    }
+
+    // استخراج ضرایب معادلهٔ درجه دوم: ax² + bx + c
+    function extractQuadraticCoeffs(node) {
+      try {
+        if (node.type !== 'OperatorNode' || node.fn !== 'add') return null;
+        let a = 0, b = 0, c = 0;
+        const terms = node.args;
+        for (let term of terms) {
+          if (term.isConstantNode) { c = term.value; continue; }
+          if (term.type === 'SymbolNode' && term.name === 'x') { b = 1; continue; }
+          if (term.type === 'OperatorNode' && term.op === '*') {
+            const [coef, power] = term.args;
+            if (power.type === 'OperatorNode' && power.op === '^' && power.args[0].name === 'x' && power.args[1].value === 2) {
+              a = coef.isConstantNode ? coef.value : (coef.name === 'x' ? 1 : 0);
+            } else if (power.name === 'x') {
+              b = coef.isConstantNode ? coef.value : 1;
+            }
+          }
+        }
+        return {a, b, c};
+      } catch {
+        return null;
+      }
+    }
+
+    // حل گام‌به‌گام معادلهٔ درجه دوم
+    function solveQuadraticStepByStep(a, b, c, left, right) {
+      const steps = [];
+      steps.push(`<div class="step">🔹 <strong>مرحله ۱:</strong> معادلهٔ ورودی: <code>${left} = ${right}</code></div>`);
+      steps.push(`<div class="step">🔹 <strong>مرحله ۲:</strong> با جابه‌جایی تمام جملات به سمت چپ: <code>${a}x² + (${b})x + (${c}) = 0</code></div>`);
+      
+      const delta = b*b - 4*a*c;
+      steps.push(`<div class="step">🔹 <strong>مرحله ۳:</strong> محاسبهٔ دلتا: Δ = b² - 4ac = (${b})² - 4×(${a})×(${c}) = ${delta}</code></div>`);
+      
+      if (delta < 0) {
+        steps.push(`<div class="step">🔹 <strong>مرحله ۴:</strong> Δ < 0 → معادله ریشهٔ حقیقی ندارد.</div>`);
+        return steps.join('');
+      }
+      
+      const sqrtDelta = Math.sqrt(delta);
+      const x1 = (-b + sqrtDelta) / (2*a);
+      const x2 = (-b - sqrtDelta) / (2*a);
+      
+      steps.push(`<div class="step">🔹 <strong>مرحله ۴:</strong> ریشه‌ها با فرمول: x = [-b ± √Δ] / (2a)</div>`);
+      steps.push(`<div class="step">🔹 <strong>مرحله ۵:</strong> x₁ = [${-b} + ${sqrtDelta.toFixed(3)}] / ${2*a} = ${x1.toFixed(4)}</div>`);
+      steps.push(`<div class="step">🔹 <strong>مرحله ۶:</strong> x₂ = [${-b} - ${sqrtDelta.toFixed(3)}] / ${2*a} = ${x2.toFixed(4)}</div>`);
+      steps.push(`<div class="step" style="background:#d4edda;border-right-color:#28a745"><strong>✅ نتیجه نهایی:</strong> x₁ = ${x1.toFixed(4)}، x₂ = ${x2.toFixed(4)}</div>`);
+      
+      return steps.join('');
+    }
+
+    // رسم نمودار با Plotly
+    function plotFunction(expr, plotDiv) {
+      try {
+        const f = math.compile(expr);
+        const xVals = math.range(-10, 10, 0.1).toArray();
+        const yVals = xVals.map(x => {
+          try { return f.evaluate({x}); } catch { return NaN; }
+        });
+
+        const trace = {
+          x: xVals,
+          y: yVals,
+          type: 'scatter',
+          mode: 'lines',
+          line: { color: '#3498db', width: 3 },
+          name: expr
+        };
+
+        const layout = {
+          title: `نمودار تابع: ${expr}`,
+          xaxis: { title: 'x' },
+          yaxis: { title: 'y' },
+          plot_bgcolor: 'rgba(0,0,0,0)',
+          paper_bgcolor: 'rgba(0,0,0,0)',
+          font: { family: 'Vazir, Tahoma', size: 14 }
+        };
+
+        Plotly.newPlot(plotDiv, [trace], layout, { responsive: true });
+      } catch (e) {
+        plotDiv.innerHTML = `<p style="color:red">❌ خطای رسم نمودار: ${e.message}</p>`;
+      }
+    }
+
+    // راه‌اندازی
+    updateHistory();
+    window.onload = () => {
+      go(); // اجرای مثال پیش‌فرض
+    };
+  </script>
+</body>
+</html>
